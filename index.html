@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Smart Home 4CH</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+<style>
+body{
+  font-family:sans-serif;
+  background:#eef2f5;
+  text-align:center;
+}
+.card{
+  background:white;
+  padding:15px;
+  margin:10px auto;
+  max-width:430px;
+  border-radius:12px;
+  box-shadow:0 4px 6px rgba(0,0,0,.1);
+}
+button{
+  padding:8px 14px;
+  margin:5px;
+  border:none;
+  border-radius:8px;
+  font-weight:bold;
+  cursor:pointer;
+}
+.on{background:#28a745;color:white;}
+.off{background:#dc3545;color:white;}
+.auto{background:#007bff;color:white;}
+
+input[type=time]{padding:4px;}
+.period{
+  margin-top:6px;
+  background:#f7f7f7;
+  padding:6px;
+  border-radius:8px;
+}
+.status{margin-top:6px;font-weight:bold;}
+</style>
+</head>
+
+<body>
+
+<h2>Smart Home 4CH</h2>
+<div id="panel"></div>
+
+<script>
+/* ---------- Firebase ---------- */
+firebase.initializeApp({
+  apiKey: "AIzaSyCpm-ASXEoZNI09ehc8YF3MIk_4yxXvXbI",
+  databaseURL: "https://home-front-light-default-rtdb.asia-southeast1.firebasedatabase.app/"
+});
+const db = firebase.database();
+
+/* ---------- UI ---------- */
+const names=["ห้องนั่งเล่น","ห้องนอน","ห้องครัว","รั้วหน้าบ้าน"];
+const panel=document.getElementById("panel");
+
+for(let i=1;i<=4;i++){
+panel.innerHTML+=`
+<div class="card">
+  <h3>${names[i-1]}</h3>
+
+  <button class="on" onclick="manual(${i},1)">เปิด</button>
+  <button class="off" onclick="manual(${i},0)">ปิด</button>
+  <button class="auto" onclick="setAuto(${i})">Auto</button>
+
+  <div class="period">
+    <b>ช่วงที่ 1</b><br>
+    เปิด <input type="time" id="on${i}">
+    ปิด <input type="time" id="off${i}">
+  </div>
+
+  <div class="period">
+    <label>
+      <input type="checkbox" id="use2_${i}" onchange="toggle2(${i})">
+      ใช้ช่วงที่ 2
+    </label><br>
+
+    เปิด <input type="time" id="on2_${i}">
+    ปิด <input type="time" id="off2_${i}">
+  </div>
+
+  <button onclick="saveTime(${i})">บันทึกเวลา</button>
+
+  <div class="status" id="st${i}">---</div>
+</div>`;
+}
+
+/* ---------- Actions ---------- */
+function manual(i,val){
+  db.ref(`controls/sw${i}`).update({
+    mode:"manual",
+    state:val
+  });
+}
+
+function setAuto(i){
+  db.ref(`controls/sw${i}/mode`).set("auto");
+}
+
+function toggle2(i){
+  const use2=document.getElementById(`use2_${i}`).checked;
+  db.ref(`controls/sw${i}/use2`).set(use2);
+}
+
+function saveTime(i){
+  const data={
+    on: document.getElementById(`on${i}`).value,
+    off:document.getElementById(`off${i}`).value,
+    on2:document.getElementById(`on2_${i}`).value,
+    off2:document.getElementById(`off2_${i}`).value,
+    use2:document.getElementById(`use2_${i}`).checked
+  };
+  db.ref(`controls/sw${i}`).update(data);
+}
+
+/* ---------- Listener ---------- */
+db.ref("controls").on("value",snap=>{
+  const d=snap.val();
+  if(!d) return;
+
+  for(let i=1;i<=4;i++){
+    const sw=d["sw"+i];
+    if(!sw) continue;
+
+    document.getElementById(`on${i}`).value  = sw.on  || "";
+    document.getElementById(`off${i}`).value = sw.off || "";
+    document.getElementById(`on2_${i}`).value  = sw.on2  || "";
+    document.getElementById(`off2_${i}`).value = sw.off2 || "";
+    document.getElementById(`use2_${i}`).checked = sw.use2 || false;
+
+    let text="";
+    if(sw.mode==="auto") text="AUTO ⏰";
+    else text=sw.state?"เปิดอยู่ 🟢":"ปิดอยู่ 🔴";
+    document.getElementById(`st${i}`).innerText=text;
+  }
+});
+</script>
+
+</body>
+</html>
